@@ -1,4 +1,4 @@
-#!/usr/local/bin/python3
+#!/usr/bin/python3
 # -*- coding: utf-8 -*-
 
 """Travis CI test for Git commit standards.
@@ -13,14 +13,18 @@ import subprocess
 
 
 class GitCommitTest():
+    """Main function of script."""
+
     commit_hashes = []
     test_failures = []
     current_commit = 0
 
     def __init__(self):
+        """Init module."""
         self._setup_commit_range()
 
     def run(self):
+        """Start tests."""
         print("Starting Git commit tests for commits {}..."
               .format(', '.join(self.commit_hashes)))
         for self.current_commit in range(len(self.commit_hashes)):
@@ -41,10 +45,12 @@ class GitCommitTest():
             exit(1)
 
     def print_failures(self):
+        """Print failures."""
         for item in self.test_failures:
             print('{}: {}'.format(item['commit'], item['message']))
 
     def test_commit_email(self):
+        """Test committer email address."""
         email = self._get_commit_info('aE')
         if not re.match(r'.*@seravo\..+$', email):
             self.test_failures.append({
@@ -54,6 +60,7 @@ class GitCommitTest():
             })
 
     def test_commit_message(self):
+        """Test commit message contents."""
         message = self._get_commit_info('B')
         message_parts = message.split('\n\n', 1)
         title = message_parts[0]
@@ -82,7 +89,9 @@ class GitCommitTest():
                 'message': "Commit message title '{}' ends in a period"
                            " character".format(title)
             })
+
     def _setup_commit_range(self):
+        """Fetch commits to test."""
         # We need the master branch here
         self._fetch_master_branch()
 
@@ -133,6 +142,6 @@ class GitCommitTest():
         commits = subprocess.check_output(cmd).decode('utf-8').split('\n')
         return list(filter(None, commits))
 
+
 if __name__ == '__main__':
     GitCommitTest().run()
-
