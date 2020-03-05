@@ -30,13 +30,13 @@ class Gnitpick():
         self.commit_hashes = list(filter(None, commits))
 
     def _git_shell_command(self, cmd):
-        print("Command:")
-        print(" ", " ".join(cmd))
+        # print("Command:")
+        # print(" ", " ".join(cmd))
         result = subprocess.check_output(cmd).decode('utf-8').strip()
         result = result.split("\n")
-        print("Result:")
-        print(" ", "\n  ".join(result))
-        print("\n")
+        # print("Result:")
+        # print(" ", "\n  ".join(result))
+        # print("\n")
         return result
 
     def _get_commit_info(self, info):
@@ -62,13 +62,13 @@ class Gnitpick():
             self.current_commit += 1
 
         if len(self.fails) > 0:
-            print("Git commit inspection did not pass!")
+            print("Gnitpick commit inspection did not pass!")
             print()  # New line for clarity
             print("Fix these fails and try again:")
             self.print_fails()
             exit(1)
         else:
-            print("Git commit inspection passed flawlessly!")
+            print("Gnitpick commit inspection passed!")
 
     def print_fails(self):
         """Print fails."""
@@ -177,6 +177,6 @@ if __name__ == '__main__':
         # Default: inspect just the latest commit
         git_rev = "HEAD~1..HEAD"
 
-    print("Inspecting git revisions range {}".format(git_rev))
+    print("Gnitpick inspecting git revisions range {}".format(git_rev))
 
     Gnitpick(git_rev).run()
