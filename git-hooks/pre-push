@@ -1,0 +1,47 @@
+#!/bin/sh
+
+# An example hook script to verify what is about to be pushed.  Called by "git
+# push" after it has checked the remote status, but before anything has been
+# pushed.  If this script exits with a non-zero status nothing will be pushed.
+#
+# Information about the commits which are being pushed is supplied as lines to
+# the standard input in the form:
+#
+#   <local ref> <local sha1> <remote ref> <remote sha1>
+#
+#   Example: refs/heads/master 67890 refs/heads/foreign 12345
+#
+# Install this script with:
+#   cd .git/hooks
+#   ln -s ../../git-hooks/pre-push
+
+# Abort on all errors
+set -e
+
+z40=0000000000000000000000000000000000000000
+
+while read local_ref local_sha remote_ref remote_sha
+do
+	if [ "$local_sha" = $z40 ]
+	then
+		# Handle delete
+		:
+	else
+		if [ "$remote_sha" = $z40 ]
+		then
+			# New branch, examine all commits
+			range="$local_sha"
+		else
+			# Update to existing branch, examine new commits
+			range="$remote_sha..$local_sha"
+		fi
+
+		# This hook always runs out of the repository root, no need to check $PWD
+		# or adjust path to Gnitpick.
+		./gnitpick.py "$range"
+		# If Gnitpick is installed system wide:
+		#gnitpick "$range"
+	fi
+done
+
+exit 0
