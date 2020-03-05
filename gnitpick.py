@@ -139,17 +139,17 @@ if __name__ == '__main__':
         print("Travis-CI detected, reading git revisions from environment")
 
         # We need the master branch here
-        cmd = ['git', 'fetch', 'origin', 'master:master']
-        subprocess.check_output(cmd).decode('utf-8').strip()
+        # cmd = ['git', 'fetch', 'origin', 'master:master']
+        # subprocess.check_output(cmd).decode('utf-8').strip()
 
         # See https://docs.travis-ci.com/user/environment-variables/#default \
         # -environment-variables.
-        event_type = os.getenv('TRAVIS_EVENT_TYPE')
+        travis_event_type = os.getenv('TRAVIS_EVENT_TYPE')
         travis_range = os.getenv('TRAVIS_COMMIT_RANGE')
         travis_branch = os.getenv('TRAVIS_BRANCH')
 
         # This script can only be run on Travis CI
-        if event_type is None:
+        if travis_event_type is None:
             raise RuntimeError("TRAVIS_EVENT_TYPE is not set – is this a"
                                " Travis CI job?")
 
@@ -158,7 +158,7 @@ if __name__ == '__main__':
         # state with the commit in HEAD already containing a merge commit to
         # the master branch. That is why we should end the range to the
         # previous commit with HEAD~1 here.
-        if event_type == 'pull_request':
+        if travis_event_type == 'pull_request':
             git_rev = '{}..HEAD~1'.format(travis_branch)
         else:
             # When a branch is force-pushed, Travis CI will return some old
