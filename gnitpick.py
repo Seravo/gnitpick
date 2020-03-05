@@ -140,28 +140,26 @@ if __name__ == '__main__':
 
         # See https://docs.travis-ci.com/user/environment-variables/#default \
         # -environment-variables.
-        travis_event_type = os.getenv('TRAVIS_EVENT_TYPE')
         travis_range = os.getenv('TRAVIS_COMMIT_RANGE')
-        travis_branch = os.getenv('TRAVIS_BRANCH')
 
-        # This script can only be run on Travis CI
-        if travis_event_type is None:
-            raise RuntimeError("TRAVIS_EVENT_TYPE is not set – is this a"
-                               " Travis CI job?")
-
-        # If currently in a PR build, TRAVIS_BRANCH will contain the target
-        # branch. However, in a Travis CI PR build the HEAD is in a detached
-        # state with the commit in HEAD already containing a merge commit to
-        # the master branch. That is why we should end the range to the
-        # previous commit with HEAD~1 here.
-        if travis_event_type == 'pull_request':
-            git_rev = '{}..HEAD~1'.format(travis_branch)
+        # When a branch is force-pushed, Travis CI will return some old
+        # commit hashes that no longer exist after force-pushing: see
+        # https://github.com/travis-ci/travis-ci/issues/2668.
+        # Therefore we need to test the range is valid.
+        try:
+            cmd = ['git', 'rev-list', '--max-count=100',
+                   '--ancestry-path', travis_range]
+            subprocess.check_call(cmd)
+        except subprocess.CalledProcessError as e:
+            print(e.returncode)
+            if e.returncode == 128:
+                print("Cannot compare {}, is this a force push?".format(travis_range))
+                # Fall back to testing 10 latest
+                git_rev = "HEAD~10..HEAD"
+            else:
+                raise RuntimeError("Git command failed!")
         else:
-            # When a branch is force-pushed, Travis CI will return some old
-            # commit hashes that no longer exist after force-pushing: see
-            # https://github.com/travis-ci/travis-ci/issues/2668.
-            #
-            # This will break when force pushing to master
+            # OK to use TRAVIS_COMMIT_RANGE
             git_rev = travis_range
 
     else:
