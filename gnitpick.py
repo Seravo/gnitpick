@@ -27,6 +27,16 @@ class Gnitpick():
         cmd = ['git', 'rev-list', '--max-count=100',
                '--ancestry-path', git_rev]
         commits = self._git_shell_command(cmd)
+        # Use list comprehension to strip out empty lines
+        commits = [i for i in commits if i]
+
+        if len(commits) < 1:
+            print("No commits in range {}".format(git_rev))
+            print("Using HEAD~10..HEAD instead.")
+            cmd = ['git', 'rev-list', '--max-count=100',
+                   '--ancestry-path', 'HEAD~10..HEAD']
+            commits = self._git_shell_command(cmd)
+
         self.commit_hashes = list(filter(None, commits))
 
     def _git_shell_command(self, cmd):
