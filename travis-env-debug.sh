@@ -41,4 +41,3 @@ Fails with:
 	path not in the working tree.
 
 Commit d4a1fbc94074 refers to the old commit before it was amended, while
-eba29444d494 is the new commit that replaced the old one.
