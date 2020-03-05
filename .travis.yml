@@ -1,0 +1,11 @@
+---
+language: python
+
+os: linux
+dist: bionic
+
+install:
+  - pip install pyflakes flake8 # Flake8 is not by default available on Travis-CI
+
+script:
+  - flake8 # Run with defaults, i.e. check all *.py files in current directory
