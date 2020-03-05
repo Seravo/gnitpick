@@ -123,8 +123,8 @@ if __name__ == '__main__':
     parser = argparse.ArgumentParser(description=DESCRIPTION)
     parser.add_argument(
         'git_revision_range', metavar='revision', nargs='?',
-        help=
-        'Git revision range to test (defaults to latest commit, HEAD~1..HEAD)')
+        help='Git revision range to test (defaults to latest commit, '
+             'HEAD~1..HEAD)')
     args = parser.parse_args()
 
     if args.git_revision_range:
