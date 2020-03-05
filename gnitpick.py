@@ -7,68 +7,96 @@ A test script for validating in Travis CI that the Git commit is up-to-par
 with our Git standards.
 """
 
+import argparse
 import os
 import re
 import subprocess
 
+DESCRIPTION = "Git commit message quality controller"
 
-class GitCommitTest():
+
+class Gnitpick():
     """Main function of script."""
 
     commit_hashes = []
-    test_failures = []
+    fails = []
     current_commit = 0
 
-    def __init__(self):
-        """Init module."""
-        self._setup_commit_range()
+    def __init__(self, git_rev):
+        """Create a list of hashes to be inspected."""
+        cmd = ['git', 'rev-list', '--max-count=100',
+               '--ancestry-path', git_rev]
+        commits = self._git_shell_command(cmd)
+        self.commit_hashes = list(filter(None, commits))
+
+    def _git_shell_command(self, cmd):
+        print("Command:")
+        print(" ", " ".join(cmd))
+        result = subprocess.check_output(cmd).decode('utf-8').strip()
+        result = result.split("\n")
+        print("Result:")
+        print(" ", "\n  ".join(result))
+        print("\n")
+        return result
+
+    def _get_commit_info(self, info):
+        cmd = ['git', 'show', '-s', '--format=%{}'.format(info),
+               self.commit_hashes[self.current_commit]]
+        return self._git_shell_command(cmd)
 
     def run(self):
-        """Start tests."""
-        print("Starting Git commit tests for commits {}..."
-              .format(', '.join(self.commit_hashes)))
+        """Start inspection."""
+        git_log = self._git_shell_command(['git', 'log', git_rev])
+        print("", "\n ".join(git_log))
+        print()  # New line for clarity
+
         for self.current_commit in range(len(self.commit_hashes)):
             print(
-                "Testing commit {}...".format(
+                "Inspecting commit {}:".format(
                     self.commit_hashes[self.current_commit]
                 )
             )
-            self.test_commit_email()
-            self.test_commit_message()
+            self.inspect_commit_email()
+            self.inspect_commit_message()
             # Add other steps here
             self.current_commit += 1
 
-        if len(self.test_failures) > 0:
-            print("Git commit tests failed!")
-            print("Failed examples:")
-            self.print_failures()
+        if len(self.fails) > 0:
+            print("Git commit inspection did not pass!")
+            print()  # New line for clarity
+            print("Fix these fails and try again:")
+            self.print_fails()
             exit(1)
+        else:
+            print("Git commit inspection passed flawlessly!")
 
-    def print_failures(self):
-        """Print failures."""
-        for item in self.test_failures:
-            print('{}: {}'.format(item['commit'], item['message']))
+    def print_fails(self):
+        """Print fails."""
+        for item in self.fails:
+            print('- {}: {}'.format(item['commit'], item['message']))
 
-    def test_commit_email(self):
-        """Test committer email address."""
-        email = self._get_commit_info('aE')
+    def inspect_commit_email(self):
+        """Inspect committer email address."""
+        # Only consider the first author email from result set
+        email = self._get_commit_info('aE')[0]
         if not re.match(r'.*@seravo\..+$', email):
-            self.test_failures.append({
+            self.fails.append({
                 'commit': self.commit_hashes[self.current_commit],
                 'message': "Commit email '{}' is not provided by Seravo"
                            .format(email)
             })
 
-    def test_commit_message(self):
-        """Test commit message contents."""
+    def inspect_commit_message(self):
+        """Inspect commit message contents."""
         message = self._get_commit_info('B')
-        message_parts = message.split('\n\n', 1)
-        title = message_parts[0]
+
+        # First line of message is the title
+        title = message[0]
 
         # The title should be max 72 characters long if it is a normal commit
         # (and not e.g. a revert commit)
         if len(title) > 72 and "This reverts commit" not in message:
-            self.test_failures.append({
+            self.fails.append({
                 'commit': self.commit_hashes[self.current_commit],
                 'message': "Commit message title '{}' is over 72 characters"
                            .format(title)
@@ -76,7 +104,7 @@ class GitCommitTest():
 
         # The title should start with an uppercase letter
         if not title[0].isupper():
-            self.test_failures.append({
+            self.fails.append({
                 'commit': self.commit_hashes[self.current_commit],
                 'message': "Commit message title '{}' does not start with an"
                            " uppercase letter".format(title)
@@ -84,16 +112,35 @@ class GitCommitTest():
 
         # The title should not end in a period
         if title[len(title)-1] == '.':
-            self.test_failures.append({
+            self.fails.append({
                 'commit': self.commit_hashes[self.current_commit],
                 'message': "Commit message title '{}' ends in a period"
                            " character".format(title)
             })
 
-    def _setup_commit_range(self):
-        """Fetch commits to test."""
+
+if __name__ == '__main__':
+    parser = argparse.ArgumentParser(description=DESCRIPTION)
+    parser.add_argument(
+        'git_revision_range', metavar='revision', nargs='?',
+        help=
+        'Git revision range to test (defaults to latest commit, HEAD~1..HEAD)')
+    args = parser.parse_args()
+
+    if args.git_revision_range:
+        # Use command-line argument if given
+        git_rev = args.git_revision_range
+
+        # Make revision a range if it wasn't already
+        if '..' not in git_rev:
+            git_rev += '..HEAD'
+
+    elif os.getenv('TRAVIS'):
+        print("Travis-CI detected, reading git revisions from environment")
+
         # We need the master branch here
-        self._fetch_master_branch()
+        cmd = ['git', 'fetch', 'origin', 'master:master']
+        subprocess.check_output(cmd).decode('utf-8').strip()
 
         # See https://docs.travis-ci.com/user/environment-variables/#default \
         # -environment-variables.
@@ -112,9 +159,7 @@ class GitCommitTest():
         # the master branch. That is why we should end the range to the
         # previous commit with HEAD~1 here.
         if event_type == 'pull_request':
-            self.commit_hashes = self._get_rev_list(
-                '{}..HEAD~1'.format(travis_branch)
-            )
+            git_rev = '{}..HEAD~1'.format(travis_branch)
         else:
             # When a branch is force-pushed, Travis CI will return some old
             # commit hashes that no longer exist after force-pushing: see
@@ -124,24 +169,14 @@ class GitCommitTest():
             # - All branches originate from the master branch
             if travis_branch == 'master':
                 # This will break when force pushing to master
-                self.commit_hashes = self._get_rev_list(travis_range)
+                git_rev = travis_range
             else:
-                self.commit_hashes = self._get_rev_list('master..HEAD')
+                git_rev = 'master..HEAD'
 
-    def _fetch_master_branch(self):
-        cmd = ['git', 'fetch', 'origin', 'master:master']
-        return subprocess.check_output(cmd).decode('utf-8').strip()
+    else:
+        # Default: inspect just the latest commit
+        git_rev = "HEAD~1..HEAD"
 
-    def _get_commit_info(self, info):
-        cmd = ['git', 'show', '-s', '--format=%{}'.format(info),
-               self.commit_hashes[self.current_commit]]
-        return subprocess.check_output(cmd).decode('utf-8').strip()
+    print("Inspecting git revisions range {}".format(git_rev))
 
-    def _get_rev_list(self, commit_range):
-        cmd = ['git', 'rev-list', '--ancestry-path', commit_range]
-        commits = subprocess.check_output(cmd).decode('utf-8').split('\n')
-        return list(filter(None, commits))
-
-
-if __name__ == '__main__':
-    GitCommitTest().run()
+    Gnitpick(git_rev).run()
