@@ -138,10 +138,6 @@ if __name__ == '__main__':
     elif os.getenv('TRAVIS'):
         print("Travis-CI detected, reading git revisions from environment")
 
-        # We need the master branch here
-        # cmd = ['git', 'fetch', 'origin', 'master:master']
-        # subprocess.check_output(cmd).decode('utf-8').strip()
-
         # See https://docs.travis-ci.com/user/environment-variables/#default \
         # -environment-variables.
         travis_event_type = os.getenv('TRAVIS_EVENT_TYPE')
@@ -164,14 +160,9 @@ if __name__ == '__main__':
             # When a branch is force-pushed, Travis CI will return some old
             # commit hashes that no longer exist after force-pushing: see
             # https://github.com/travis-ci/travis-ci/issues/2668.
-            # For that reason, we need to assume:
-            # - Nobody force-pushes to master
-            # - All branches originate from the master branch
-            if travis_branch == 'master':
-                # This will break when force pushing to master
-                git_rev = travis_range
-            else:
-                git_rev = 'master..HEAD'
+            #
+            # This will break when force pushing to master
+            git_rev = travis_range
 
     else:
         # Default: inspect just the latest commit
