@@ -39,5 +39,3 @@ Fails with:
 	Gnitpick inspecting git revisions range d4a1fbc94074...eba29444d494
 	fatal: ambiguous argument 'd4a1fbc94074...eba29444d494': unknown revision or
 	path not in the working tree.
-
-Commit d4a1fbc94074 refers to the old commit before it was amended, while
