@@ -1,0 +1,22 @@
+.\" This file was generated with
+.\" help2man --version-string=0.1 --no-info --section=1 --source=Seravo ./gnitpick.py > man/gnitpick.1
+.\" Plus some manual tweaking. Test with man -l man/gnitpick.1
+.TH GNITPICK "1" "March 2020" "Seravo" "User Commands"
+.SH NAME
+gnitpick \- Git commit message quality controller
+.SH DESCRIPTION
+usage: gnitpick [\-h] [\-\-email\-domains EMAIL_DOMAINS] [revision]
+.PP
+.SS "positional arguments:"
+.TP
+revision
+Git revision range to test (defaults to latest commit,
+HEAD~1..HEAD)
+.SS "optional arguments:"
+.TP
+\fB\-h\fR, \fB\-\-help\fR
+show this help message and exit
+.TP
+\fB\-\-email\-domains\fR EMAIL_DOMAINS
+Comma separated list of allowed author email domains,
+e.g seravo.com,seravo.fi
