@@ -9,6 +9,7 @@ with our Git standards.
 
 import argparse
 import os
+import re
 import subprocess
 
 DESCRIPTION = "Git commit message quality controller"
@@ -110,6 +111,14 @@ class Gnitpick():
         # First line of message is the title
         title = message[0]
 
+        # The title should not end in a period, ever
+        if title[len(title)-1] == '.':
+            self.fails.append({
+                'commit': self.commit_hashes[self.current_commit],
+                'message': "Commit message title '{}' ends in a period"
+                           " character".format(title)
+            })
+
         # The title should be max 72 characters long if it is a normal commit
         # (and not e.g. a revert commit)
         if len(title) > 72 and "This reverts commit" not in message:
@@ -119,21 +128,20 @@ class Gnitpick():
                            .format(title)
             })
 
-        # The title should start with an uppercase letter
-        if not title[0].isupper():
-            self.fails.append({
-                'commit': self.commit_hashes[self.current_commit],
-                'message': "Commit message title '{}' does not start with an"
-                           " uppercase letter".format(title)
-            })
-
-        # The title should not end in a period
-        if title[len(title)-1] == '.':
-            self.fails.append({
-                'commit': self.commit_hashes[self.current_commit],
-                'message': "Commit message title '{}' ends in a period"
-                           " character".format(title)
-            })
+        # If the first word references an issue or file check if differently
+        # eg. "xyz-123: The title", "one.py, two.py: The title",
+        #     "[123]: The title" or "MDEV-1234: The title"
+        # When modifying this, verify with https://www.regexpal.com/
+        if re.match(r'^([a-zA-Z0-9-.\[\]])+(, [a-zA-Z0-9-.\[\]]+)?:', title):
+            pass
+        else:
+            # The title should start with an uppercase letter
+            if not title[0].isupper():
+                self.fails.append({
+                    'commit': self.commit_hashes[self.current_commit],
+                    'message': "Commit message title '{}' does not start with "
+                               "an uppercase letter".format(title)
+                })
 
 
 if __name__ == '__main__':
