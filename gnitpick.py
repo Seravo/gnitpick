@@ -9,7 +9,6 @@ with our Git standards.
 
 import argparse
 import os
-import re
 import subprocess
 
 DESCRIPTION = "Git commit message quality controller"
@@ -21,14 +20,18 @@ class Gnitpick():
     commit_hashes = []
     fails = []
     current_commit = 0
+    email_domains = None
 
-    def __init__(self, git_rev):
+    def __init__(self, git_rev, *, email_domains=None):
         """Create a list of hashes to be inspected."""
         cmd = ['git', 'rev-list', '--max-count=100',
                '--ancestry-path', git_rev]
         commits = self._git_shell_command(cmd)
         # Use list comprehension to strip out empty lines
         commits = [i for i in commits if i]
+
+        if email_domains:
+            self.email_domains = email_domains
 
         if len(commits) < 1:
             print("No commits in range {}".format(git_rev))
@@ -89,11 +92,15 @@ class Gnitpick():
         """Inspect committer email address."""
         # Only consider the first author email from result set
         email = self._get_commit_info('aE')[0]
-        if not re.match(r'.*@seravo\..+$', email):
+        author_email_domain = email.split("@")[1]
+
+        if self.email_domains and \
+           author_email_domain not in self.email_domains:
             self.fails.append({
                 'commit': self.commit_hashes[self.current_commit],
-                'message': "Commit email '{}' is not provided by Seravo"
-                           .format(email)
+                'message': "Commit email '{}' is does not match any of "
+                           "the required email domains: {}"
+                           .format(email, ", ".join(self.email_domains))
             })
 
     def inspect_commit_message(self):
@@ -135,6 +142,10 @@ if __name__ == '__main__':
         'git_revision_range', metavar='revision', nargs='?',
         help='Git revision range to test (defaults to latest commit, '
              'HEAD~1..HEAD)')
+    parser.add_argument(
+        '--email-domains', nargs=1,
+        help='Comma separated list of allowed author email domains, '
+             ' e.g seravo.com,seravo.fi')
     args = parser.parse_args()
 
     if args.git_revision_range:
@@ -179,4 +190,12 @@ if __name__ == '__main__':
 
     print("Gnitpick inspecting git revisions range {}".format(git_rev))
 
-    Gnitpick(git_rev).run()
+    if args.email_domains:
+        email_domains = args.email_domains[0].split(",")
+    else:
+        email_domains = None
+
+    Gnitpick(
+        git_rev,
+        email_domains=email_domains
+    ).run()
