@@ -184,8 +184,8 @@ if __name__ == '__main__':
             if e.returncode == 128:
                 print("Cannot compare {}, is this a force push?".
                       format(travis_range))
-                # Fall back to testing 10 latest
-                git_rev = "HEAD~10..HEAD"
+                # Fall back to testing 3 latest
+                git_rev = "HEAD~3..HEAD"
             else:
                 raise RuntimeError("Git command failed!")
         else:
