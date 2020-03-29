@@ -32,6 +32,15 @@ class Gnitpick():
         # Use list comprehension to strip out empty lines
         commits = [i for i in commits if i]
 
+        # In the special case that we detect a Travis-CI job running on a
+        # simulated PR branch to master branch merge, then skip the first
+        # commit as it is artificial and made by Travis-CI itself
+        if os.getenv('TRAVIS_PULL_REQUEST_BRANCH') and \
+                os.getenv('TRAVIS_BRANCH') == 'master' and \
+                os.getenv('TRAVIS_PULL_REQUEST_BRANCH') != \
+                os.getenv('TRAVIS_BRANCH'):
+            commits = commits[1:]
+
         if email_domains:
             self.email_domains = email_domains
 
@@ -169,10 +178,14 @@ if __name__ == '__main__':
         help='Git revision range to test (defaults to remote master commit, '
              'origin/master..HEAD)')
     parser.add_argument(
-        '--target-branch', default='origin/master',
-        help='Target branch remote and name (defaults to "origin/master")')
+        '--target-branch',
+        help='Target branch remote and name (defaults to "master")')
     parser.add_argument(
-        '--email-domains', nargs=1,
+        '--target-repository',
+        help='Target repository name or address if should compare across '
+             'repos (defaults to "origin")')
+    parser.add_argument(
+        '--email-domains',
         help='Comma separated list of allowed author email domains, '
              ' e.g seravo.com,seravo.fi')
     parser.add_argument(
@@ -180,8 +193,42 @@ if __name__ == '__main__':
         help='Enable in verbose mode')
     args = parser.parse_args()
 
-    # This value always has a default
-    target_branch = args.target_branch
+    if not args.target_branch:
+        # Default value
+        target_branch = 'master'
+
+    if not args.target_repository:
+        # Default value
+        target_repository = 'origin'
+    else:
+        print(f'Checking against target repository "{args.target_repository}"')
+
+        # Check if remote starts with https:// or ends with .git
+        if args.target_repository[0:8] == 'https://' or \
+           args.target_repository[-4:] == '.git':
+            # Add new remote with name 'gnitpick-reference' and use it
+            target_repository = 'gnitpick-reference'
+            subprocess.check_call([
+                'git', 'remote', 'add',
+                target_repository, args.target_repository])
+
+        else:
+            target_repository = args.target_repository
+
+        # Check if repository with that name is already configured
+        remotes = subprocess.check_output(['git', 'remote'])
+        if target_repository not in str(remotes):
+            raise RuntimeError(
+                f'Given remote name {target_repository} '
+                'does not exists, aborting..')
+
+        # Start tracking remote branch
+        subprocess.check_call([
+            'git', 'remote', 'set-branches', '--add',
+            target_repository, target_branch])
+        # Fetch remote branch that is tracked
+        subprocess.check_call([
+            'git', 'fetch', target_repository, target_branch])
 
     if args.git_revision_range:
         # Use command-line argument if given
@@ -191,7 +238,13 @@ if __name__ == '__main__':
         if '..' not in git_rev:
             git_rev += '..HEAD'
 
-    elif os.getenv('TRAVIS'):
+        if args.target_branch:
+            print(f'Ignoring branch "{args.target_branch}" as exact revision '
+                  f'range {args.git_revision_range} has been given')
+
+    elif os.getenv('TRAVIS') and \
+            not args.target_branch and not args.target_repository:
+        # Use Travis environment variables only if no override exists
         print("Travis-CI detected, reading git revisions from environment")
 
         # See https://docs.travis-ci.com/user/environment-variables/#default \
@@ -211,8 +264,8 @@ if __name__ == '__main__':
             if e.returncode == 128:
                 print("Cannot compare {}, is this a force push?".
                       format(travis_range))
-                # Fall back to testing comparing agains target branch
-                git_rev = args.target_branch + '..HEAD'
+                # Fall back to testing comparing against target branch
+                git_rev = f'{target_repository}/{target_branch}..HEAD'
             else:
                 raise RuntimeError("Git command failed!")
         else:
@@ -221,9 +274,9 @@ if __name__ == '__main__':
 
     else:
         # If no git revision range was given, and Travis-CI not detected, then
-        # default to compate HEAD to the target branch where we assume it
+        # default to compare HEAD to the target branch where we assume it
         # branched off from
-        git_rev = target_branch + '..HEAD'
+        git_rev = f'{target_repository}/{target_branch}..HEAD'
 
     # One more time ensure we can see the range we can compare
     try:
@@ -235,22 +288,15 @@ if __name__ == '__main__':
         if e.returncode == 128:
             print("Cannot compare {}, attempting to fetch more commits".
                   format(git_rev))
-            # Split origin/master from origin/master..HEAD
-            git_rev_from_part = git_rev.split('..')[0]
-            # Split origin from origin/master
-            target_repo = git_rev_from_part.split('/')[0]
-            # Split master from origin/master
-            # or feature/xyz from origin/feature/xyz
-            target_branch = '/'.join(git_rev_from_part.split('/')[1:])
             # Start tracking remote branch
             subprocess.check_call([
                 'git', 'remote', 'set-branches', '--add',
-                target_repo, target_branch])
+                target_repository, target_branch])
             # Fetch remote branch that is tracked
             subprocess.check_call([
-                'git', 'fetch', target_repo, target_branch])
+                'git', 'fetch', target_repository, target_branch])
         else:
-            raise RuntimeError("Git command failed!")
+            raise RuntimeError('Git command failed!')
 
     print("Gnitpick inspecting git revisions range {}".format(git_rev))
 
