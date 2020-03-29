@@ -32,15 +32,6 @@ class Gnitpick():
         # Use list comprehension to strip out empty lines
         commits = [i for i in commits if i]
 
-        # In the special case that we detect a Travis-CI job running on a
-        # simulated PR branch to master branch merge, then skip the first
-        # commit as it is artificial and made by Travis-CI itself
-        if os.getenv('TRAVIS_PULL_REQUEST_BRANCH') and \
-                os.getenv('TRAVIS_BRANCH') == 'master' and \
-                os.getenv('TRAVIS_PULL_REQUEST_BRANCH') != \
-                os.getenv('TRAVIS_BRANCH'):
-            commits = commits[1:]
-
         if email_domains:
             self.email_domains = email_domains
 
@@ -49,10 +40,19 @@ class Gnitpick():
 
         if len(commits) < 1:
             print("No commits in range {}".format(git_rev))
-            print("Using HEAD~10..HEAD instead.")
+            print("Using origin/master..HEAD instead.")
             cmd = ['git', 'rev-list', '--max-count=100',
-                   '--ancestry-path', 'HEAD~10..HEAD']
+                   '--ancestry-path', 'origin/master..HEAD']
             commits = self._git_shell_command(cmd)
+
+        # In the special case that we detect a Travis-CI job running on a
+        # simulated PR branch to master branch merge, then skip the first
+        # commit as it is artificial and made by Travis-CI itself
+        if os.getenv('TRAVIS_PULL_REQUEST_BRANCH') and \
+                os.getenv('TRAVIS_BRANCH') == 'master' and \
+                os.getenv('TRAVIS_PULL_REQUEST_BRANCH') != \
+                os.getenv('TRAVIS_BRANCH'):
+            commits = commits[1:]
 
         self.commit_hashes = list(filter(None, commits))
 
