@@ -301,7 +301,7 @@ if __name__ == '__main__':
     print("Gnitpick inspecting git revisions range {}".format(git_rev))
 
     if args.email_domains:
-        email_domains = args.email_domains[0].split(",")
+        email_domains = args.email_domains.split(",")
     else:
         email_domains = None
 
