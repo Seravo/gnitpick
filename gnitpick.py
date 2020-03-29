@@ -22,8 +22,9 @@ class Gnitpick():
     fails = []
     current_commit = 0
     email_domains = None
+    verbose = None
 
-    def __init__(self, git_rev, *, email_domains=None):
+    def __init__(self, git_rev, *, email_domains=None, verbose=None):
         """Create a list of hashes to be inspected."""
         cmd = ['git', 'rev-list', '--max-count=100',
                '--ancestry-path', git_rev]
@@ -33,6 +34,9 @@ class Gnitpick():
 
         if email_domains:
             self.email_domains = email_domains
+
+        if verbose:
+            self.verbose = verbose
 
         if len(commits) < 1:
             print("No commits in range {}".format(git_rev))
@@ -95,6 +99,9 @@ class Gnitpick():
         email = self._get_commit_info('aE')[0]
         author_email_domain = email.split("@")[1]
 
+        if self.verbose:
+            print(f'--> Checking author email "{author_email_domain}"')
+
         if self.email_domains and \
            author_email_domain not in self.email_domains:
             self.fails.append({
@@ -110,6 +117,9 @@ class Gnitpick():
 
         # First line of message is the title
         title = message[0]
+
+        if self.verbose:
+            print(f'--> Checking commit title "{title}"')
 
         # The title should not end in a period, ever
         if title[len(title)-1] == '.':
@@ -162,6 +172,9 @@ if __name__ == '__main__':
         '--email-domains', nargs=1,
         help='Comma separated list of allowed author email domains, '
              ' e.g seravo.com,seravo.fi')
+    parser.add_argument(
+        '--verbose', default=False, action='store_true',
+        help='Enable in verbose mode')
     args = parser.parse_args()
 
     if args.git_revision_range:
@@ -213,5 +226,6 @@ if __name__ == '__main__':
 
     Gnitpick(
         git_rev,
-        email_domains=email_domains
+        email_domains=email_domains,
+        verbose=args.verbose
     ).run()
