@@ -143,6 +143,14 @@ class Gnitpick():
                                "an uppercase letter".format(title)
                 })
 
+        # Merge requests should not include merges themselves
+        if title[0:14] == "Merge branch '":
+            self.fails.append({
+                'commit': self.commit_hashes[self.current_commit],
+                'message': "Merge request includes merges by itself"
+                           .format(title)
+            })
+
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(description=DESCRIPTION)
