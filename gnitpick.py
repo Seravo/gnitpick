@@ -166,8 +166,11 @@ if __name__ == '__main__':
     parser = argparse.ArgumentParser(description=DESCRIPTION)
     parser.add_argument(
         'git_revision_range', metavar='revision', nargs='?',
-        help='Git revision range to test (defaults to latest commit, '
-             'HEAD~1..HEAD)')
+        help='Git revision range to test (defaults to remote master commit, '
+             'origin/master..HEAD)')
+    parser.add_argument(
+        '--target-branch', default='origin/master',
+        help='Target branch remote and name (defaults to "origin/master")')
     parser.add_argument(
         '--email-domains', nargs=1,
         help='Comma separated list of allowed author email domains, '
@@ -176,6 +179,9 @@ if __name__ == '__main__':
         '--verbose', default=False, action='store_true',
         help='Enable in verbose mode')
     args = parser.parse_args()
+
+    # This value always has a default
+    target_branch = args.target_branch
 
     if args.git_revision_range:
         # Use command-line argument if given
@@ -205,8 +211,8 @@ if __name__ == '__main__':
             if e.returncode == 128:
                 print("Cannot compare {}, is this a force push?".
                       format(travis_range))
-                # Fall back to testing 3 latest
-                git_rev = "HEAD~3..HEAD"
+                # Fall back to testing comparing agains target branch
+                git_rev = args.target_branch + '..HEAD'
             else:
                 raise RuntimeError("Git command failed!")
         else:
@@ -214,8 +220,37 @@ if __name__ == '__main__':
             git_rev = travis_range
 
     else:
-        # Default: inspect just the latest commit
-        git_rev = "HEAD~1..HEAD"
+        # If no git revision range was given, and Travis-CI not detected, then
+        # default to compate HEAD to the target branch where we assume it
+        # branched off from
+        git_rev = target_branch + '..HEAD'
+
+    # One more time ensure we can see the range we can compare
+    try:
+        cmd = ['git', 'rev-list', '--max-count=100',
+               '--ancestry-path', git_rev]
+        subprocess.check_call(cmd)
+    except subprocess.CalledProcessError as e:
+        print(e.returncode)
+        if e.returncode == 128:
+            print("Cannot compare {}, attempting to fetch more commits".
+                  format(git_rev))
+            # Split origin/master from origin/master..HEAD
+            git_rev_from_part = git_rev.split('..')[0]
+            # Split origin from origin/master
+            target_repo = git_rev_from_part.split('/')[0]
+            # Split master from origin/master
+            # or feature/xyz from origin/feature/xyz
+            target_branch = '/'.join(git_rev_from_part.split('/')[1:])
+            # Start tracking remote branch
+            subprocess.check_call([
+                'git', 'remote', 'set-branches', '--add',
+                target_repo, target_branch])
+            # Fetch remote branch that is tracked
+            subprocess.check_call([
+                'git', 'fetch', target_repo, target_branch])
+        else:
+            raise RuntimeError("Git command failed!")
 
     print("Gnitpick inspecting git revisions range {}".format(git_rev))
 
