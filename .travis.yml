@@ -10,4 +10,4 @@ install:
 
 script:
   - flake8 # Run with defaults, i.e. check all *.py files in current directory
-  - ./gnitpick.py --verbose
+  - ./gnitpick.py --verbose --email-domains seravo.com
