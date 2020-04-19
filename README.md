@@ -14,6 +14,7 @@ Senior developers should not spend too much time on teaching juniors on how to m
 * https://github.com/erlang/otp/wiki/writing-good-commit-messages
 * https://brigade.engineering/the-secrets-to-great-commit-messages-106fc0a92a25
 * https://dev.to/jacobherrington/how-to-write-useful-commit-messages-my-commit-message-template-20n9
+* https://git-scm.com/book/en/v2/Distributed-Git-Contributing-to-a-Project
 
 See also a basic presentation on git best practices on Slideshare:
 
