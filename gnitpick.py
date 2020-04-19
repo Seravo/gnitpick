@@ -167,7 +167,6 @@ class Gnitpick():
             self.fails.append({
                 'commit': self.commit_hashes[self.current_commit],
                 'message': "Merge request includes merges by itself"
-                           .format(title)
             })
 
 
