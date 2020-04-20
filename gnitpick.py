@@ -93,6 +93,9 @@ class Gnitpick():
             print()  # New line for clarity
             print("Fix these fails and try again:")
             self.print_fails()
+            print()
+            print("Read more about about git best practices at")
+            print("https://github.com/Seravo/gnitpick#recommended-reads")
             exit(1)
         else:
             print("Gnitpick commit inspection passed!")
