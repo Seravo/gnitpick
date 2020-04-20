@@ -83,7 +83,8 @@ class Gnitpick():
                     self.commit_hashes[self.current_commit]
                 )
             )
-            self.inspect_commit_email()
+            self.inspect_author_name()
+            self.inspect_author_email()
             self.inspect_commit_message()
             # Add other steps here
             self.current_commit += 1
@@ -105,8 +106,23 @@ class Gnitpick():
         for item in self.fails:
             print('- {}: {}'.format(item['commit'], item['message']))
 
-    def inspect_commit_email(self):
-        """Inspect committer email address."""
+    def inspect_author_name(self):
+        """Inspect author name."""
+        # Only consider the first author email from result set
+        author_name = self._get_commit_info('aN')[0]
+
+        if self.verbose:
+            print(f'--> Checking author name "{author_name}"')
+
+        if not author_name[0].isupper():
+            self.fails.append({
+                'commit': self.commit_hashes[self.current_commit],
+                'message': "Author name '{}' does not start with "
+                           "an uppercase letter".format(author_name)
+            })
+
+    def inspect_author_email(self):
+        """Inspect author email address."""
         # Only consider the first author email from result set
         email = self._get_commit_info('aE')[0]
         author_email_domain = email.split("@")[1]
@@ -118,7 +134,7 @@ class Gnitpick():
            author_email_domain not in self.email_domains:
             self.fails.append({
                 'commit': self.commit_hashes[self.current_commit],
-                'message': "Commit email '{}' is does not match any of "
+                'message': "Commit author email '{}' is does not match any of "
                            "the required email domains: {}"
                            .format(email, ", ".join(self.email_domains))
             })
