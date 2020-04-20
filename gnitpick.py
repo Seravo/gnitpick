@@ -190,6 +190,24 @@ if __name__ == '__main__':
     parser.add_argument(
         '--verbose', default=False, action='store_true',
         help='Enable in verbose mode')
+
+    # First check that git is installed and this is running in a git repository
+    try:
+        cmd = ['git', 'status']
+        subprocess.check_call(cmd, stdout=subprocess.DEVNULL)
+    except FileNotFoundError:
+        print("Command 'git' not found, aborting Gnitpick")
+        exit(2)
+    except subprocess.CalledProcessError as e:
+        if e.returncode == 128:
+            print("Gnitpick failed to run in directory: {}".
+                  format(subprocess.check_output(
+                    ['pwd'], universal_newlines=True)))
+            exit(e.returncode)
+
+        else:
+            raise RuntimeError("Running {} failed!".format(" ".join(cmd)))
+
     args = parser.parse_args()
 
     if not args.target_branch:
@@ -219,7 +237,7 @@ if __name__ == '__main__':
         if target_repository not in str(remotes):
             raise RuntimeError(
                 f'Given remote name {target_repository} '
-                'does not exists, aborting..')
+                'does not exists, aborting Gnitpick')
 
         # Start tracking remote branch
         subprocess.check_call([
