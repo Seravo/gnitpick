@@ -294,7 +294,7 @@ if __name__ == '__main__':
         try:
             cmd = ['git', 'rev-list', '--max-count=100',
                    '--ancestry-path', travis_range]
-            subprocess.check_call(cmd)
+            subprocess.check_call(cmd, stdout=subprocess.DEVNULL)
         except subprocess.CalledProcessError as e:
             print(e.returncode)
             if e.returncode == 128:
@@ -318,7 +318,7 @@ if __name__ == '__main__':
     try:
         cmd = ['git', 'rev-list', '--max-count=100',
                '--ancestry-path', git_rev]
-        subprocess.check_call(cmd)
+        subprocess.check_call(cmd, stdout=subprocess.DEVNULL)
     except subprocess.CalledProcessError as e:
         print(e.returncode)
         if e.returncode == 128:
