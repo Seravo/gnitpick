@@ -26,8 +26,9 @@ class Gnitpick():
 
     def __init__(self, git_rev, *, email_domains=None, verbose=None):
         """Create a list of hashes to be inspected."""
-        cmd = ['git', 'rev-list', '--max-count=100',
-               '--ancestry-path', git_rev]
+        # NOTE! Don't use --ancestry-path as origin/master is likely no longer
+        # a direct ancestry as this new commit branched off before master HEAD.
+        cmd = ['git', 'rev-list', '--max-count=100', git_rev]
         commits = self._git_shell_command(cmd)
         # Use list comprehension to strip out empty lines
         commits = [i for i in commits if i]
@@ -41,8 +42,7 @@ class Gnitpick():
         if len(commits) < 1:
             print("No commits in range {}".format(git_rev))
             print("Using origin/master..HEAD instead.")
-            cmd = ['git', 'rev-list', '--max-count=100',
-                   '--ancestry-path', 'origin/master..HEAD']
+            cmd = ['git', 'rev-list', '--max-count=100', 'origin/master..HEAD']
             commits = self._git_shell_command(cmd)
 
         # In the special case that we detect a Travis-CI job running on a
@@ -291,9 +291,10 @@ if __name__ == '__main__':
         # commit hashes that no longer exist after force-pushing: see
         # https://github.com/travis-ci/travis-ci/issues/2668.
         # Therefore we need to test the range is valid.
+        # NOTE! Don't use --ancestry-path as origin/master is likely no longer
+        # a direct ancestry as this new commit branched off before master HEAD.
         try:
-            cmd = ['git', 'rev-list', '--max-count=100',
-                   '--ancestry-path', travis_range]
+            cmd = ['git', 'rev-list', '--max-count=100', travis_range]
             subprocess.check_call(cmd, stdout=subprocess.DEVNULL)
         except subprocess.CalledProcessError as e:
             print(e.returncode)
@@ -315,9 +316,10 @@ if __name__ == '__main__':
         git_rev = f'{target_repository}/{target_branch}..HEAD'
 
     # One more time ensure we can see the range we can compare
+    # NOTE! Don't use --ancestry-path as origin/master is likely no longer
+    # a direct ancestry as this new commit branched off before master HEAD.
     try:
-        cmd = ['git', 'rev-list', '--max-count=100',
-               '--ancestry-path', git_rev]
+        cmd = ['git', 'rev-list', '--max-count=100', git_rev]
         subprocess.check_call(cmd, stdout=subprocess.DEVNULL)
     except subprocess.CalledProcessError as e:
         print(e.returncode)
