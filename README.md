@@ -2,6 +2,29 @@
 
 Git commit message [nitpicker](https://en.wiktionary.org/wiki/nitpick). Makes sure all future git commit messages are perfect!
 
+Example:
+```
+$ gnitpick
+
+Gnitpick inspecting git revisions range origin/master..HEAD
+commit 32f0d152f2985b95c43e3cd79caa18104d32f413
+Author: Otto Kekäläinen <otto@kekalainen.net>
+Date:   Mon Jun 29 10:54:45 2020 +0300
+
+    update readme with description about how to install this project on a local development environment.
+
+Inspecting commit 32f0d152f2985b95c43e3cd79caa18104d32f413:
+Gnitpick commit inspection did not pass!
+
+Fix these fails and try again:
+- 32f0d152: Commit message title ends in a period character
+- 32f0d152: Commit message title is over 72 characters
+- 32f0d152: Commit message title does not start with an uppercase letter
+
+Read more about about git best practices at
+https://github.com/Seravo/gnitpick#recommended-reads
+```
+
 ## Why?
 
 Even though [git](https://git-scm.com/) has been around now for 15+ years and is the de-facto solution for version control in all modern software projects, developers and contributors in software projects do not intuitively seem to grasp the best practices in building software patch-by-patch and describing the WHAT and WHY for each step.
@@ -26,11 +49,22 @@ See also a basic presentation on git best practices on Slideshare:
 [![Git workshop presentation on Slideshare](images/slideshare-git-workshop.png)](https://www.slideshare.net/ottokekalainen/git-best-practices-workshop).
 
 
-## Usage
+## Installation and usage
 
-In you git pre-commit hook or CI system, simply run:
+Install Gnitpick globally with:
 
-    python3 /path/to/gnitpick.py
+    curl -sS https://raw.githubusercontent.com/Seravo/gnitpick/master/gnitpick.py -o /usr/bin/gnitpick
+    chmod +x /usr/bin/gnitpick
+
+To launch it, simply run it you git repository directory:
+
+    $ gnitpick
+    Gnitpick inspecting git revisions range origin/master..HEAD
+    No commits in range origin/master..HEAD
+    Using origin/master..HEAD instead.
+
+    Gnitpick commit inspection passed!
+
 
 ### Local git hook
 
@@ -42,6 +76,10 @@ Simply add this to your `.travis.yml` file:
 
     - curl -O https://raw.githubusercontent.com/Seravo/gnitpick/master/gnitpick.py
     - python3 ./gnitpick.py
+
+### Live examples
+
+For live examples, see the [Makefile in Fevermap](https://gitlab.com/fevermap/fevermap/-/blob/master/Makefile#L23) or the [.gitlab-ci.yml in Fevermap](https://gitlab.com/fevermap/fevermap/-/blob/master/.gitlab-ci.yml#L15-23) or the [.travis.yml in Seravo Plugin](https://github.com/Seravo/seravo-plugin/blob/master/.travis.yml#L19-L25.)
 
 ## Development status
 
