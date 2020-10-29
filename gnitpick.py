@@ -157,9 +157,14 @@ class Gnitpick():
                            " character".format(title)
             })
 
+        special_commit = False
+        if title.startswith('Merge') or \
+           message[0].startswith('This reverts commit'):
+            special_commit = True
+
         # The title should be max 72 characters long if it is a normal commit
         # (and not e.g. a revert commit)
-        if len(title) > 72 and "This reverts commit" not in message:
+        if len(title) > 72 and not special_commit:
             self.fails.append({
                 'commit': self.commit_hashes[self.current_commit],
                 'message': "Commit message title '{}' is over 72 characters"
