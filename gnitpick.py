@@ -20,11 +20,9 @@ class Gnitpick():
 
     commit_hashes = []
     fails = []
-    current_commit = 0
-    email_domains = None
-    verbose = None
+    current_commit = None
 
-    def __init__(self, git_rev, *, email_domains=None, verbose=None):
+    def __init__(self, git_rev, email_domains, verbose):
         """Create a list of hashes to be inspected."""
         # NOTE! Don't use --ancestry-path as origin/master is likely no longer
         # a direct ancestry as this new commit branched off before master HEAD.
@@ -33,14 +31,11 @@ class Gnitpick():
         # Use list comprehension to strip out empty lines
         commits = [i for i in commits if i]
 
-        if email_domains:
-            self.email_domains = email_domains
-
-        if verbose:
-            self.verbose = verbose
+        self.email_domains = email_domains
+        self.verbose = verbose
 
         if len(commits) < 1:
-            print("No commits in range {}".format(git_rev))
+            print(f"No commits in range {git_rev}")
             print("Using origin/master..HEAD instead.")
             cmd = ['git', 'rev-list', '--max-count=100', 'origin/master..HEAD']
             commits = self._git_shell_command(cmd)
@@ -57,19 +52,25 @@ class Gnitpick():
         self.commit_hashes = list(filter(None, commits))
 
     def _git_shell_command(self, cmd):
-        # print("Command:")
-        # print(" ", " ".join(cmd))
         result = subprocess.check_output(cmd).decode('utf-8').strip()
         result = result.split("\n")
-        # print("Result:")
-        # print(" ", "\n  ".join(result))
-        # print("\n")
         return result
 
     def _get_commit_info(self, info):
-        cmd = ['git', 'show', '-s', '--format=%{}'.format(info),
-               self.commit_hashes[self.current_commit]]
+        cmd = [
+            'git',
+            'show',
+            '-s',
+            f'--format=%{info}',
+            self.current_commit
+        ]
         return self._git_shell_command(cmd)
+
+    def _add_fail(self, msg):
+        self.fails.append({
+            'commit': self.current_commit,
+            'message': msg
+        })
 
     def run(self):
         """Start inspection."""
@@ -77,19 +78,16 @@ class Gnitpick():
         print("", "\n ".join(git_log))
         print()  # New line for clarity
 
-        for self.current_commit in range(len(self.commit_hashes)):
-            print(
-                "Inspecting commit {}:".format(
-                    self.commit_hashes[self.current_commit]
-                )
-            )
-            self.inspect_author_name()
+        for self.current_commit in self.commit_hashes:
+            print(f"Inspecting commit {self.current_commit}")
+            # Only consider the first author email from result set
+            author_name = self._get_commit_info('aN')[0]
+
+            self.inspect_author_name(author_name)
             self.inspect_author_email()
             self.inspect_commit_message()
-            # Add other steps here
-            self.current_commit += 1
 
-        if len(self.fails) > 0:
+        if self.fails:
             print("Gnitpick commit inspection did not pass!")
             print()  # New line for clarity
             print("Fix these fails and try again:")
@@ -104,22 +102,19 @@ class Gnitpick():
     def print_fails(self):
         """Print fails."""
         for item in self.fails:
-            print('- {}: {}'.format(item['commit'], item['message']))
+            print(f"- {item['commit']}: {item['message']}")
 
-    def inspect_author_name(self):
+    def inspect_author_name(self, author_name):
         """Inspect author name."""
-        # Only consider the first author email from result set
-        author_name = self._get_commit_info('aN')[0]
 
         if self.verbose:
             print(f'--> Checking author name "{author_name}"')
 
-        if not author_name[0].isupper():
-            self.fails.append({
-                'commit': self.commit_hashes[self.current_commit],
-                'message': "Author name '{}' does not start with "
-                           "an uppercase letter".format(author_name)
-            })
+        elif not author_name[0].isupper():
+            self._add_fail(
+                f"Author name '{author_name}' "
+                "does not start with an uppercase letter"
+            )
 
     def inspect_author_email(self):
         """Inspect author email address."""
@@ -132,12 +127,10 @@ class Gnitpick():
 
         if self.email_domains and \
            author_email_domain not in self.email_domains:
-            self.fails.append({
-                'commit': self.commit_hashes[self.current_commit],
-                'message': "Commit author email '{}' is does not match any of "
-                           "the required email domains: {}"
-                           .format(email, ", ".join(self.email_domains))
-            })
+            self._add_fail(
+                f"Commit author email '{email}' does not match any of "
+                f"the required email domains: {', '.join(self.email_domains)}"
+            )
 
     def inspect_commit_message(self):
         """Inspect commit message contents."""
@@ -150,26 +143,20 @@ class Gnitpick():
             print(f'--> Checking commit title "{title}"')
 
         # The title should not end in a period, ever
-        if title[len(title)-1] == '.':
-            self.fails.append({
-                'commit': self.commit_hashes[self.current_commit],
-                'message': "Commit message title '{}' ends in a period"
-                           " character".format(title)
-            })
+        if title[-1] == '.':
+            self._add_fail(
+                f"Commit message title '{title}' ends in a period character")
 
         special_commit = False
         if title.startswith('Merge') or \
-           message[0].startswith('This reverts commit'):
+           title.startswith('This reverts commit'):
             special_commit = True
 
         # The title should be max 72 characters long if it is a normal commit
         # (and not e.g. a revert commit)
         if len(title) > 72 and not special_commit:
-            self.fails.append({
-                'commit': self.commit_hashes[self.current_commit],
-                'message': "Commit message title '{}' is over 72 characters"
-                           .format(title)
-            })
+            self._add_fail(
+                f"Commit message title '{title}' is over 72 characters")
 
         # If the first word references an issue or file check if differently
         # eg. "xyz-123: The title", "one.py, two.py: The title",
@@ -180,18 +167,14 @@ class Gnitpick():
         else:
             # The title should start with an uppercase letter
             if not title[0].isupper():
-                self.fails.append({
-                    'commit': self.commit_hashes[self.current_commit],
-                    'message': "Commit message title '{}' does not start with "
-                               "an uppercase letter".format(title)
-                })
+                self._add_fail(
+                    f"Commit message title '{title}' "
+                    "does not start with an uppercase letter"
+                )
 
         # Merge requests should not include merges themselves
         if title[0:14] == "Merge branch '":
-            self.fails.append({
-                'commit': self.commit_hashes[self.current_commit],
-                'message': "Merge request includes merges by itself"
-            })
+            self._add_fail("Merge request includes merges by itself")
 
 
 if __name__ == '__main__':
@@ -226,7 +209,7 @@ if __name__ == '__main__':
         if e.returncode == 128:
             print("Gnitpick failed to run in directory: {}".
                   format(subprocess.check_output(
-                    ['pwd'], universal_newlines=True)))
+                      ['pwd'], universal_newlines=True)))
             exit(e.returncode)
 
         else:
@@ -304,8 +287,7 @@ if __name__ == '__main__':
         except subprocess.CalledProcessError as e:
             print(e.returncode)
             if e.returncode == 128:
-                print("Cannot compare {}, is this a force push?".
-                      format(travis_range))
+                print(f"Cannot compare {travis_range}, is this a force push?")
                 # Fall back to testing comparing against target branch
                 git_rev = f'{target_repository}/{target_branch}..HEAD'
             else:
@@ -329,8 +311,8 @@ if __name__ == '__main__':
     except subprocess.CalledProcessError as e:
         print(e.returncode)
         if e.returncode == 128:
-            print("Cannot compare {}, attempting to fetch more commits".
-                  format(git_rev))
+            print(
+                f"Cannot compare {git_rev}, attempting to fetch more commits")
             # Start tracking remote branch
             subprocess.check_call([
                 'git', 'remote', 'set-branches', '--add',
@@ -341,12 +323,12 @@ if __name__ == '__main__':
         else:
             raise RuntimeError('Git command failed!')
 
-    print("Gnitpick inspecting git revisions range {}".format(git_rev))
+    print(f"Gnitpick inspecting git revisions range {git_rev}")
 
     if args.email_domains:
         email_domains = args.email_domains.split(",")
     else:
-        email_domains = None
+        email_domains = []
 
     Gnitpick(
         git_rev,
