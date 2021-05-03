@@ -22,7 +22,7 @@ class Gnitpick():
     fails = []
     current_commit = None
 
-    def __init__(self, git_rev, email_domains, verbose):
+    def __init__(self, git_rev, email_domains, bot_names, verbose):
         """Create a list of hashes to be inspected."""
         # NOTE! Don't use --ancestry-path as origin/master is likely no longer
         # a direct ancestry as this new commit branched off before master HEAD.
@@ -33,6 +33,7 @@ class Gnitpick():
 
         self.email_domains = email_domains
         self.verbose = verbose
+        self.bot_whitelist = bot_names
 
         if len(commits) < 1:
             print(f"No commits in range {git_rev}")
@@ -82,6 +83,9 @@ class Gnitpick():
             print(f"Inspecting commit {self.current_commit}")
             # Only consider the first author email from result set
             author_name = self._get_commit_info('aN')[0]
+            # Continue if author name is a bot listed in the whitelist
+            if author_name in self.bot_whitelist:
+                continue
 
             self.inspect_author_name(author_name)
             self.inspect_author_email()
@@ -182,21 +186,35 @@ if __name__ == '__main__':
     parser.add_argument(
         'git_revision_range', metavar='revision', nargs='?',
         help='Git revision range to test (defaults to remote master commit, '
-             'origin/master..HEAD)')
+             'origin/master..HEAD)'
+    )
     parser.add_argument(
         '--target-branch',
-        help='Target branch remote and name (defaults to "master")')
+        help='Target branch remote and name (defaults to "master")'
+    )
     parser.add_argument(
         '--target-repository',
         help='Target repository name or address if should compare across '
-             'repos (defaults to "origin")')
+             'repos (defaults to "origin")'
+    )
     parser.add_argument(
         '--email-domains',
         help='Comma separated list of allowed author email domains, '
-             ' e.g seravo.com,seravo.fi')
+             ' e.g seravo.com,seravo.fi',
+        type=lambda domains: [domain for domain in domains.split(",")],
+        default=[]
+    )
+    parser.add_argument(
+        '--bot-names',
+        help='Comma separated list of bot names, that bypass the checks. '
+        ' e.g dependabot[bot],probot',
+        type=lambda names: [name for name in names.split(",")],
+        default=[]
+    )
     parser.add_argument(
         '--verbose', default=False, action='store_true',
-        help='Enable in verbose mode')
+        help='Enable verbose mode'
+    )
 
     # First check that git is installed and this is running in a git repository
     try:
@@ -325,13 +343,9 @@ if __name__ == '__main__':
 
     print(f"Gnitpick inspecting git revisions range {git_rev}")
 
-    if args.email_domains:
-        email_domains = args.email_domains.split(",")
-    else:
-        email_domains = []
-
     Gnitpick(
         git_rev,
-        email_domains=email_domains,
+        email_domains=args.email_domains,
+        bot_names=args.bot_names,
         verbose=args.verbose
     ).run()
