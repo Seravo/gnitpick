@@ -180,6 +180,20 @@ class Gnitpick():
         if title[0:14] == "Merge branch '":
             self._add_fail("Merge request includes merges by itself")
 
+        main_branches = ["main", "master"]
+        commit_branch = target_branch
+
+        # Use Travis pull request target branch if in Travis environment
+        if os.getenv('TRAVIS_BRANCH'):
+            commit_branch = os.getenv('TRAVIS_BRANCH')
+
+        # Commit labeled "WIP" (Work-in-progress) shouldn't end up in master
+        if commit_branch in main_branches and title[0:3] == "WIP":
+            self._add_fail(
+                f"Commit message title '{title}' has a work-in-progress label "
+                "while it's going to master"
+            )
+
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(description=DESCRIPTION)
