@@ -235,13 +235,24 @@ if __name__ == '__main__':
 
     args = parser.parse_args()
 
-    if not args.target_branch:
-        # Default value
-        target_branch = 'master'
+    target_branch = args.target_branch if args.target_branch else "master"
 
     if not args.target_repository:
         # Default value
         target_repository = 'origin'
+        # check that the target branch exists in remote
+        try:
+            subprocess.check_call([
+                "git",
+                "ls-remote",
+                "--exit-code",
+                "--heads",
+                "origin",
+                target_branch
+            ])
+        except subprocess.CalledProcessError:
+            print(f"Target branch {target_branch} does not exist!")
+            exit(1)
     else:
         print(f'Checking against target repository "{args.target_repository}"')
 
@@ -327,7 +338,6 @@ if __name__ == '__main__':
         cmd = ['git', 'rev-list', '--max-count=100', git_rev]
         subprocess.check_call(cmd, stdout=subprocess.DEVNULL)
     except subprocess.CalledProcessError as e:
-        print(e.returncode)
         if e.returncode == 128:
             print(
                 f"Cannot compare {git_rev}, attempting to fetch more commits")
