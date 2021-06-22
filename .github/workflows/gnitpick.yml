@@ -1,0 +1,21 @@
+name: 'Nitpick git commits'
+
+on: [push, pull_request]
+
+env:
+  PYTHON_VERSION: 3.6
+
+jobs:
+  nitpick:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Setup repository
+        uses: actions/checkout@v2
+
+      - name: Set up python ${{ env.PYTHON_VERSION }}
+        uses: actions/setup-python@v2
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+
+      - name: Run gnitpick
+        run: python3 gnitpick.py --verbose
