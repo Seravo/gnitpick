@@ -22,7 +22,9 @@ class Gnitpick():
     fails = []
     current_commit = None
 
-    def __init__(self, git_rev, email_domains, bot_names, verbose):
+    def __init__(
+        self, git_rev, email_domains, bot_names, verbose, main_branch
+    ):
         """Create a list of hashes to be inspected."""
         # NOTE! Don't use --ancestry-path as origin/master is likely no longer
         # a direct ancestry as this new commit branched off before master HEAD.
@@ -34,11 +36,15 @@ class Gnitpick():
         self.email_domains = email_domains
         self.verbose = verbose
         self.bot_whitelist = bot_names
+        self.main_branch = main_branch
 
         if len(commits) < 1:
             print(f"No commits in range {git_rev}")
-            print("Using origin/master..HEAD instead.")
-            cmd = ['git', 'rev-list', '--max-count=100', 'origin/master..HEAD']
+            print(f"Using origin/{main_branch}..HEAD instead.")
+            cmd = [
+                'git', 'rev-list', '--max-count=100',
+                f'origin/{main_branch}..HEAD'
+            ]
             commits = self._git_shell_command(cmd)
 
         # In the special case that we detect a Travis-CI job running on a
@@ -114,7 +120,7 @@ class Gnitpick():
         if self.verbose:
             print(f'--> Checking author name "{author_name}"')
 
-        elif not author_name[0].isupper():
+        if not author_name[0].isupper():
             self._add_fail(
                 f"Author name '{author_name}' "
                 "does not start with an uppercase letter"
@@ -180,7 +186,6 @@ class Gnitpick():
         if title[0:14] == "Merge branch '":
             self._add_fail("Merge request includes merges by itself")
 
-        main_branches = ["main", "master"]
         commit_branch = target_branch
 
         # Use Travis pull request target branch if in Travis environment
@@ -188,7 +193,7 @@ class Gnitpick():
             commit_branch = os.getenv('TRAVIS_BRANCH')
 
         # Commit labeled "WIP" (Work-in-progress) shouldn't end up in master
-        if commit_branch in main_branches and title[0:3] == "WIP":
+        if commit_branch == self.main_branch and title[0:3] == "WIP":
             self._add_fail(
                 f"Commit message title '{title}' has a work-in-progress label "
                 "while it's going to master"
@@ -201,6 +206,11 @@ if __name__ == '__main__':
         'git_revision_range', metavar='revision', nargs='?',
         help='Git revision range to test (defaults to remote master commit, '
              'origin/master..HEAD)'
+    )
+    parser.add_argument(
+        "--main-branch",
+        help="Main branch of the repository. Defaults to master.",
+        default="master"
     )
     parser.add_argument(
         '--target-branch',
@@ -371,5 +381,6 @@ if __name__ == '__main__':
         git_rev,
         email_domains=args.email_domains,
         bot_names=args.bot_names,
-        verbose=args.verbose
+        verbose=args.verbose,
+        main_branch=args.main_branch
     ).run()
