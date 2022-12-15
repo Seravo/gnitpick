@@ -1,4 +1,4 @@
-name: 'Lint python code'
+name: "Lint python code"
 
 on: [push, pull_request]
 
@@ -7,7 +7,7 @@ env:
 
 jobs:
   lint:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-20.04
     steps:
       - name: Setup repository
         uses: actions/checkout@v2

@@ -1,4 +1,4 @@
-name: 'Nitpick git commits'
+name: "Nitpick git commits"
 
 on: [push, pull_request]
 
@@ -7,7 +7,7 @@ env:
 
 jobs:
   nitpick:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-20.04
     steps:
       - name: Setup repository
         uses: actions/checkout@v2
