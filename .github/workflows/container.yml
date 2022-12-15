@@ -1,0 +1,72 @@
+---
+name: build container
+
+on:
+  push:
+    paths:
+      - .github/workflows/container.yml
+      - Dockerfile
+      - gnitpick.py
+  pull_request:
+    paths:
+      - .github/workflows/container.yml
+      - Dockerfile
+      - gnitpick.py
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    services:
+      registry:
+        image: registry:2
+        ports:
+          - 5000:5000
+    env:
+      DEPLOY_IMAGES: false
+
+    steps:
+      - uses: actions/checkout@v2
+      - name: Check Dockerfile with hadolint
+        run: |
+          docker run -i -v $(pwd):/mnt -w /mnt hadolint/hadolint:latest hadolint /mnt/Dockerfile
+      - name: Build image
+        uses: docker/build-push-action@v2
+        with:
+          context: .
+          push: true
+          tags: localhost:5000/test/gnitpick:latest
+      - name: Check container
+        run: |
+          docker run -i -v $(pwd):/mnt -w /mnt localhost:5000/test/gnitpick:latest gnitpick -h
+      - name: Check for registry credentials
+        if: >
+          github.ref == 'refs/heads/master' &&
+          github.repository == 'Seravo/gnitpick'
+        run: |
+          missing=()
+          [[ -n "${{ secrets.REGISTRY_USER }}" ]] || missing+=(REGISTRY_USER)
+          [[ -n "${{ secrets.REGISTRY_TOKEN }}" ]] || missing+=(REGISTRY_TOKEN)
+          for i in "${missing[@]}"; do
+            echo "Missing github secret: $i"
+          done
+          if (( ${#missing[@]} == 0 )); then
+            echo "DEPLOY_IMAGES=true" >> $GITHUB_ENV
+          else
+            echo "Not pushing images to registry"
+          fi
+      - name: Login to registry
+        if: ${{ env.DEPLOY_IMAGES == 'true' }}
+        uses: docker/login-action@v1
+        with:
+          registry: registry.com
+          username: ${{ secrets.REGISTRY_USER }}
+          password: ${{ secrets.REGISTRY_TOKEN }}
+      - name: Push images to registry
+        if: ${{ env.DEPLOY_IMAGES == 'true' }}
+        run: |
+          msg="Push docker image to registry"
+          line="${msg//?/=}"
+          printf "\n${line}\n${msg}\n${line}\n"
+          skopeo copy --all --src-tls-verify=0 \
+          docker://localhost:5000/test/gnitpick:latest \
+          docker://registry.com/Seravo/gnitpick:latest
