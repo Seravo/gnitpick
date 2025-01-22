@@ -1,0 +1,9 @@
+---
+name: 'Lint git commits'
+description: 'Run linting for git commits with Gnitpick'
+
+runs:
+  using: 'docker'
+  image: 'Dockerfile'
+  args:
+    - '--verbose'

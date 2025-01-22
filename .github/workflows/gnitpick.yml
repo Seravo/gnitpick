@@ -1,21 +1,13 @@
 name: "Nitpick git commits"
 
-on: [push, pull_request]
-
-env:
-  PYTHON_VERSION: 3.6
+on: [push]
 
 jobs:
   nitpick:
-    runs-on: ubuntu-20.04
+    runs-on: ubuntu-latest
     steps:
       - name: Setup repository
-        uses: actions/checkout@v2
-
-      - name: Set up python ${{ env.PYTHON_VERSION }}
-        uses: actions/setup-python@v2
-        with:
-          python-version: ${{ env.PYTHON_VERSION }}
+        uses: actions/checkout@v4
 
       - name: Run gnitpick
-        run: python3 gnitpick.py --verbose
+        uses: Seravo/gnitpick@feature/container
